@@ -8,15 +8,20 @@ import (
 	"os"
 )
 
-type operation uint
+type Operation uint
+
+type Diff struct {
+	Op  Operation
+	str string
+}
 
 const (
-	INSERT operation = 1
+	INSERT Operation = 1
 	DELETE           = 2
 	MOVE             = 3
 )
 
-func (op operation) String() string {
+func (op Operation) String() string {
 	switch op {
 	case INSERT:
 		return "INS"
@@ -29,7 +34,7 @@ func (op operation) String() string {
 	}
 }
 
-var colors = map[operation]string{
+var colors = map[Operation]string{
 	INSERT: "\033[32m",
 	DELETE: "\033[31m",
 	MOVE:   "\033[39m",
@@ -58,10 +63,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	generateDiff(src, dst)
+	generateDiffAndPrint(src, dst)
 }
 
-func generateDiff(src, dst []string) {
+func generateDiffAndPrint(src, dst []string) {
 	script := shortestEditScript(src, dst)
 
 	srcIndex, dstIndex := 0, 0
@@ -84,13 +89,46 @@ func generateDiff(src, dst []string) {
 	}
 }
 
+func generateDiff(src, dst []string) []Diff {
+	script := shortestEditScript(src, dst)
+
+	diff := make([]Diff, len(script))
+	srcIndex, dstIndex, diffIndex := 0, 0, 0
+
+	for _, op := range script {
+		diff[diffIndex].Op = op
+		switch op {
+		case INSERT:
+			diff[diffIndex].str = dst[dstIndex]
+			dstIndex += 1
+
+		case MOVE:
+			diff[diffIndex].str = src[srcIndex]
+			srcIndex += 1
+			dstIndex += 1
+
+		case DELETE:
+			diff[diffIndex].str = src[srcIndex]
+			srcIndex += 1
+		}
+		diffIndex++
+	}
+	return diff
+}
+
 // 生成最短的编辑脚本
-func shortestEditScript(src, dst []string) []operation {
+func shortestEditScript(src, dst []string) []Operation {
 	n := len(src)
 	m := len(dst)
 	max := n + m
 	var trace []map[int]int
 	var x, y int
+	// 反向回溯
+	var script []Operation
+
+	if max <= 0 {
+		return script
+	}
 
 loop:
 	for d := 0; d <= max; d++ {
@@ -135,9 +173,6 @@ loop:
 			}
 		}
 	}
-
-	// 反向回溯
-	var script []operation
 
 	x = n
 	y = m
@@ -192,8 +227,8 @@ func printTrace(trace []map[int]int) {
 	}
 }
 
-func reverse(s []operation) []operation {
-	result := make([]operation, len(s))
+func reverse(s []Operation) []Operation {
+	result := make([]Operation, len(s))
 
 	for i, v := range s {
 		result[len(s)-1-i] = v
